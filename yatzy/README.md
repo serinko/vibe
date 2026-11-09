@@ -19,6 +19,9 @@ laptop, show the scoreboard on the TV.
    ./start-yatzy.sh
    ```
 
+   På Windows: dubbelklicka på **Starta Yatzy.bat**. TV-fönstret öppnas av sig
+   självt när du trycker *Starta spelet*.
+
 3. Webbläsaren öppnas. Skriv in namnen och tryck **Starta spelet**. Du får en
    kod, till exempel `BGRVY`.
 4. Öppna ett nytt webbläsarfönster, dra det till TV:n och gå till:
@@ -133,11 +136,20 @@ cd yatzy
 ./start-yatzy.sh
 ```
 
-On Windows:
+### Windows
 
-```sh
-python3 server.py
-```
+Double-click **Starta Yatzy.bat**.
+
+It finds Python, starts the server in its own minimised window, waits until it
+is actually answering, and opens the browser. When you press *Starta spelet*
+the TV window opens by itself as a second browser window — drag that one onto
+the TV and press F11.
+
+Close the minimised *Yatzy-server* window when you are done, or double-click
+**Stoppa Yatzy.bat** if it got lost behind something.
+
+Python 3 must be installed, with *Add Python to PATH* ticked during
+installation. The launcher says so if it cannot find it.
 
 The app serves on port 8765 and opens a browser window. Leave the terminal open
 while you play; close it to stop.
@@ -181,7 +193,9 @@ or a Chromecast instead.
 | `index.html` | Score entry, phone and laptop |
 | `tv.html` | TV scoreboard |
 | `manifest.webmanifest`, `icon.svg` | Makes it installable as an app |
-| `start-yatzy.sh` | Launcher |
+| `start-yatzy.sh` | Launcher, Linux and macOS |
+| `Starta Yatzy.bat` | Launcher, Windows: double-click it |
+| `Stoppa Yatzy.bat` | Stops a server window left running on Windows |
 | `yatzy-data.json` | Saved games, created on first run |
 
 ### Resetting

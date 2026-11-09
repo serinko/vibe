@@ -5,40 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yatzy tillsammans – TV</title>
 <style>
-  /* Deliberately plain CSS: no grid, no custom properties, no flex gap, so an
-     older Samsung TV browser has a fair chance of rendering it. */
-  html,body{margin:0; padding:0; background:#123b31; color:#f7f5ed;
-    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  /* TVs overscan: keep everything inside a safe margin. */
-  .safe{padding:3vh 3vw;}
-  .top{overflow:hidden; margin-bottom:1.6vh;}
-  .top h1{margin:0; float:left; font-size:3.0vh; letter-spacing:.08em;
+  /* Deliberately plain CSS: no grid, no custom properties, no flex, so an
+     older Samsung TV browser has a fair chance of rendering it. The sheet is
+     split into two columns because 15 rows plus headers do not fit the height
+     of a 16:9 screen without shrinking the type past readable. */
+  html,body{margin:0; padding:0; height:100%; background:#123b31; color:#f7f5ed;
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; overflow:hidden;}
+  .safe{padding:2.2vh 2.2vw;}                /* TVs overscan */
+  .top{overflow:hidden; margin-bottom:1.2vh;}
+  .top h1{margin:0; float:left; font-size:2.6vh; letter-spacing:.08em;
     text-transform:uppercase; color:#c8a24a;}
-  .top .code{float:right; font-size:2.6vh; opacity:.8;}
-  .now{background:#1d5444; padding:1.6vh 2vw; margin-bottom:1.8vh;
-    border-left:0.9vh solid #c8a24a;}
-  .now .lab{font-size:2.0vh; opacity:.75; letter-spacing:.14em;
+  .top .code{float:right; font-size:2.3vh; opacity:.8;}
+  .top .cols-btn{float:right; margin-right:1.2vw; font-family:inherit;
+    font-size:1.9vh; padding:0.3vh 0.9vw; cursor:pointer;
+    background:transparent; color:#c8a24a; border:1px solid #27614f;
+    border-radius:0.5vh;}
+  .top .cols-btn:hover{background:#1d5444;}
+  .col.one{width:100%; margin-left:0;}
+  .now{background:#1d5444; padding:1.1vh 1.6vw; margin-bottom:1.2vh;
+    border-left:0.8vh solid #c8a24a; overflow:hidden;}
+  .now .lab{font-size:1.7vh; opacity:.75; letter-spacing:.14em;
     text-transform:uppercase;}
-  .now .nm{font-size:6.4vh; font-weight:700; line-height:1.05;}
+  .now .nm{font-size:4.6vh; font-weight:700; line-height:1.05;}
+  .cols{overflow:hidden;}
+  .col{display:inline-block; width:49%; vertical-align:top;}
+  .col.right{margin-left:1.5%;}
   table{width:100%; border-collapse:collapse;}
-  th,td{padding:0.75vh 0.6vw; text-align:right; font-size:2.5vh;
+  th,td{padding:0.42vh 0.5vw; text-align:right; font-size:2.2vh;
     border-bottom:1px solid #27614f;}
   th:first-child,td:first-child{text-align:left; opacity:.85;}
-  thead th{font-size:2.6vh; color:#c8a24a; text-transform:uppercase;
-    letter-spacing:.05em;}
+  thead th{font-size:2.2vh; color:#c8a24a; text-transform:uppercase;
+    letter-spacing:.04em;}
   thead th.cur{background:#c8a24a; color:#123b31;}
   td.cur{background:#1a4b3e;}
-  tr.sum td{font-weight:700; font-size:2.9vh; background:#0d2d25;}
-  tr.tot td{font-weight:700; font-size:4.0vh; background:#c8a24a; color:#123b31;}
-  tr.bonus td{color:#9fd3bf; font-size:2.2vh;}
+  tr.sum td{font-weight:700; font-size:2.4vh; background:#0d2d25;}
+  tr.tot td{font-weight:700; font-size:3.2vh; background:#c8a24a; color:#123b31;}
+  tr.bonus td{color:#9fd3bf; font-size:1.9vh;}
   .empty{text-align:center; padding-top:18vh;}
   .empty .big{font-size:7vh; color:#c8a24a; letter-spacing:.1em;}
   .empty .sub{font-size:2.8vh; opacity:.8; margin-top:2vh; line-height:1.5;}
-  .win{background:#c8a24a; color:#123b31; padding:1.6vh 2vw; margin-bottom:1.8vh;}
-  .win .nm{font-size:6.0vh; font-weight:700;}
+
+  /* finale */
+  #fx{position:fixed; left:0; top:0; width:100%; height:100%;
+      pointer-events:none; z-index:50; display:none;}
+  #final{position:fixed; left:0; top:0; width:100%; height:100%;
+      background:#123b31; z-index:40; display:none; text-align:center;}
+  #final .inner{padding-top:7vh;}
+  #final .lab{font-size:2.4vh; letter-spacing:.2em; text-transform:uppercase;
+      color:#c8a24a;}
+  #final .who{font-size:10vh; font-weight:700; line-height:1.05; margin:1vh 0;}
+  #final .pts{font-size:4.6vh; color:#c8a24a; margin-bottom:2.5vh;}
+  #final table{width:62%; margin:0 auto;}
+  #final td{font-size:3.0vh; padding:0.7vh 1vw; border-bottom:1px solid #27614f;}
+  #final td.pos{text-align:left; opacity:.6; width:8%;}
+  #final td.nm{text-align:left;}
+  #final .again{font-size:2.5vh; opacity:.85; margin-top:3.5vh; line-height:1.6;}
 </style>
 </head>
 <body>
+<canvas id="fx"></canvas>
+<div id="final"><div class="inner" id="finalInner"></div></div>
+
 <div class="safe" id="root">
   <div class="empty">
     <div class="big">YATZY TILLSAMMANS</div>
@@ -56,12 +83,26 @@ var LABELS = {
 };
 
 var code = (location.pathname.match(/\/tv\/([A-Za-z]{5})/) || [])[1];
-var since = 0;
+var since = 0, shownFor = null;
+
+// One or two columns. Two fits a widescreen TV without scrolling; one suits a
+// tall or portrait screen. Remembered per device.
+var twoCols = true;
+try{
+  var pref = localStorage.getItem("yatzy_tv_cols");
+  if(pref === "1") twoCols = false;
+}catch(e){}
+
+function toggleCols(){
+  twoCols = !twoCols;
+  try{ localStorage.setItem("yatzy_tv_cols", twoCols ? "2" : "1"); }catch(e){}
+  if(lastState) draw(lastState);
+}
+var lastState = null;
 
 function esc(s){
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-
 function blank(msg){
   document.getElementById("root").innerHTML =
     '<div class="empty"><div class="big">YATZY TILLSAMMANS</div>' +
@@ -95,66 +136,176 @@ function poll(){
   x.send();
 }
 
-function draw(s){
-  var cur = s.players[s.turn], i, p, h;
-
-  h = '<div class="top"><h1>Yatzy tillsammans</h1>' +
-      '<div class="code">Kod ' + esc(s.code) + "</div></div>";
-
-  if(s.finished){
-    h += '<div class="win"><div class="lab">VINNARE</div><div class="nm">' +
-         esc(s.winner) + " \u2013 " + s.totals[s.winner].total +
-         " po\u00e4ng</div></div>";
-  } else {
-    h += '<div class="now"><div class="lab">Nu spelar</div><div class="nm">' +
-         esc(cur) + "</div></div>";
-  }
-
-  h += "<table><thead><tr><th>Ruta</th>";
+function headRow(s, cur){
+  var h = "<thead><tr><th>Ruta</th>", i, p;
   for(i=0;i<s.players.length;i++){
     p = s.players[i];
     h += '<th class="' + (p===cur && !s.finished ? "cur" : "") + '">' +
          esc(p) + "</th>";
   }
-  h += "</tr></thead><tbody>";
+  return h + "</tr></thead>";
+}
 
-  function rows(list){
-    var j,k,v,c;
-    for(j=0;j<list.length;j++){
-      c = list[j];
-      h += "<tr><td>" + LABELS[c] + "</td>";
-      for(k=0;k<s.players.length;k++){
-        p = s.players[k];
-        v = s.scores[p] ? s.scores[p][c] : undefined;
-        h += '<td class="' + (p===cur && !s.finished ? "cur" : "") + '">' +
-             (v === undefined || v === null ? "\u00b7" : v) + "</td>";
-      }
-      h += "</tr>";
+function catRows(s, list, cur){
+  var h = "", j, k, p, v, c;
+  for(j=0;j<list.length;j++){
+    c = list[j];
+    h += "<tr><td>" + LABELS[c] + "</td>";
+    for(k=0;k<s.players.length;k++){
+      p = s.players[k];
+      v = s.scores[p] ? s.scores[p][c] : undefined;
+      h += '<td class="' + (p===cur && !s.finished ? "cur" : "") + '">' +
+           (v === undefined || v === null ? "\u00b7" : v) + "</td>";
     }
+    h += "</tr>";
+  }
+  return h;
+}
+
+function sheet(s, cur, body){
+  return "<table>" + headRow(s, cur) + "<tbody>" + body + "</tbody></table>";
+}
+
+function draw(s){
+  var cur = s.players[s.turn], i, h, t;
+  lastState = s;
+
+  if(s.finished){
+    // Fire the finale once per finished game. `created` changes on a replay,
+    // so playing again shows it afresh.
+    if(shownFor !== s.code + ":" + s.round){
+      shownFor = s.code + ":" + s.round;
+      finale(s);
+    }
+    return;
   }
 
-  rows(s.categories.upper);
+  document.getElementById("final").style.display = "none";
+  document.getElementById("fx").style.display = "none";
 
-  h += '<tr class="sum"><td>Summa</td>';
-  for(i=0;i<s.players.length;i++) h += "<td>" + s.totals[s.players[i]].upper + "</td>";
-  h += "</tr>";
+  h = '<div class="top"><h1>Yatzy tillsammans</h1>' +
+      '<div class="code">Kod ' + esc(s.code) + "</div>" +
+      '<button class="cols-btn" onclick="toggleCols()">' +
+      (twoCols ? "1 kolumn" : "2 kolumner") + "</button></div>";
+  h += '<div class="now"><div class="lab">Nu spelar</div><div class="nm">' +
+       esc(cur) + "</div></div>";
 
-  h += '<tr class="bonus"><td>Bonus vid 63</td>';
+  // left column: upper section, its sum, the bonus
+  var left = '<tr class="sum"><td>Summa</td>';
+  for(i=0;i<s.players.length;i++) left += "<td>" + s.totals[s.players[i]].upper + "</td>";
+  left += '</tr><tr class="bonus"><td>Bonus vid 63</td>';
   for(i=0;i<s.players.length;i++){
-    var t = s.totals[s.players[i]];
-    h += "<td>" + (t.bonus ? "+50" :
-         (t.to_bonus ? t.to_bonus + " kvar" : "\u2013")) + "</td>";
+    t = s.totals[s.players[i]];
+    left += "<td>" + (t.bonus ? "+50" :
+            (t.to_bonus ? t.to_bonus + " kvar" : "\u2013")) + "</td>";
   }
-  h += "</tr>";
+  left += "</tr>";
 
-  rows(s.categories.lower);
+  // right column: lower section and the grand total
+  var right = '<tr class="tot"><td>TOTALT</td>';
+  for(i=0;i<s.players.length;i++) right += "<td>" + s.totals[s.players[i]].total + "</td>";
+  right += "</tr>";
 
-  h += '<tr class="tot"><td>TOTALT</td>';
-  for(i=0;i<s.players.length;i++) h += "<td>" + s.totals[s.players[i]].total + "</td>";
-  h += "</tr></tbody></table>";
+  if(twoCols){
+    h += '<div class="cols">' +
+           '<div class="col">' +
+             sheet(s, cur, catRows(s, s.categories.upper, cur) + left) +
+           '</div>' +
+           '<div class="col right">' +
+             sheet(s, cur, catRows(s, s.categories.lower, cur) + right) +
+           '</div>' +
+         '</div>';
+  } else {
+    // Summa and the bonus belong directly under sexor, where they are read,
+    // not pushed to the bottom of a 15-row table.
+    h += '<div class="cols"><div class="col one">' +
+           sheet(s, cur,
+                 catRows(s, s.categories.upper, cur) + left +
+                 catRows(s, s.categories.lower, cur) + right) +
+         '</div></div>';
+  }
 
   document.getElementById("root").innerHTML = h;
 }
+
+/* ── finale ─────────────────────────────────────────────────────────────── */
+function finale(s){
+  var order = s.players.slice().sort(function(a,b){
+    return s.totals[b].total - s.totals[a].total;
+  });
+  var w = order[0], h, i, p;
+
+  h = '<div class="lab">Vinnare</div>' +
+      '<div class="who">' + esc(w) + "</div>" +
+      '<div class="pts">' + s.totals[w].total + " po\u00e4ng</div><table>";
+  for(i=0;i<order.length;i++){
+    p = order[i];
+    h += '<tr><td class="pos">' + (i+1) + '.</td><td class="nm">' + esc(p) +
+         "</td><td>" + s.totals[p].total + "</td></tr>";
+  }
+  h += "</table>";
+  h += '<div class="again">Vill ni spela igen med samma spelare?<br>' +
+       'Tryck <strong>Spela igen</strong> p\u00e5 telefonen eller datorn.</div>';
+
+  document.getElementById("finalInner").innerHTML = h;
+  document.getElementById("final").style.display = "block";
+  confetti(10000);
+}
+
+function confetti(ms){
+  var cv = document.getElementById("fx");
+  cv.style.display = "block";
+  cv.width = cv.offsetWidth; cv.height = cv.offsetHeight;
+  var ctx = cv.getContext ? cv.getContext("2d") : null;
+  if(!ctx) return;   // very old browser: skip the sparkle, keep the board
+
+  var cols = ["#c8a24a","#f7f5ed","#9fd3bf","#e0b65c","#ffffff"];
+  var bits = [], i;
+  for(i=0;i<160;i++){
+    bits.push({
+      x: Math.random()*cv.width,
+      y: -Math.random()*cv.height,
+      w: 6 + Math.random()*10,
+      h: 10 + Math.random()*14,
+      vy: 1.5 + Math.random()*3.5,
+      vx: -1 + Math.random()*2,
+      a: Math.random()*6.28,
+      va: -0.12 + Math.random()*0.24,
+      c: cols[Math.floor(Math.random()*cols.length)]
+    });
+  }
+
+  var stop = (new Date()).getTime() + ms;
+  var raf = window.requestAnimationFrame || function(f){ setTimeout(f, 33); };
+
+  function frame(){
+    var now = (new Date()).getTime(), j, b;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(j=0;j<bits.length;j++){
+      b = bits[j];
+      b.y += b.vy; b.x += b.vx; b.a += b.va;
+      // keep refilling until near the end, then let them fall out of frame
+      if(b.y > cv.height + 20 && now < stop - 1500){
+        b.y = -20; b.x = Math.random()*cv.width;
+      }
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.a);
+      ctx.fillStyle = b.c;
+      ctx.fillRect(-b.w/2, -b.h/2, b.w, b.h);
+      ctx.restore();
+    }
+    if(now < stop){ raf(frame); }
+    else { ctx.clearRect(0,0,cv.width,cv.height); cv.style.display = "none"; }
+  }
+  raf(frame);
+}
+
+window.onresize = function(){
+  var cv = document.getElementById("fx");
+  cv.width = cv.offsetWidth; cv.height = cv.offsetHeight;
+};
 </script>
 </body>
 </html>
+

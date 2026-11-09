@@ -110,8 +110,15 @@ Pappa</textarea>
   <!-- game -->
   <div id="game" class="hide">
     <div class="who">
-      <div class="turn">Nu är det</div>
+      <div class="turn" id="curLab">Nu är det</div>
       <div class="name" id="curName">-</div>
+    </div>
+    <div class="card hide" id="againCard">
+      <h2 style="margin:0 0 6px; font-size:18px">Spelet är slut</h2>
+      <table id="finalTable" style="margin-bottom:6px"></table>
+      <button onclick="again()">Spela igen</button>
+      <p class="hint" style="margin:8px 0 0">Samma spelare, samma ordning.
+        TV:n hänger med automatiskt.</p>
     </div>
     <div class="card" style="padding:8px 10px">
       <table id="sheet"></table>
@@ -211,6 +218,13 @@ function leave(){
 
 function openTv(){ window.open("/tv/"+code, "_blank"); }
 
+function again(){
+  // Same room code on purpose: the TV URL stays valid and follows along.
+  api("/api/again/"+code, {}).then(function(s){
+    if(!s.error){ state=s; since=s.version; render(); }
+  });
+}
+
 function poll(){
   fetch("/api/state/"+code+"?since="+since)
     .then(function(r){return r.json();})
@@ -224,8 +238,28 @@ function poll(){
 function render(){
   if(!state) return;
   var cur = state.players[state.turn];
+  document.getElementById("curLab").textContent =
+    state.finished ? "Vinnare" : "Nu är det";
   document.getElementById("curName").textContent =
-    state.finished ? ("Vinnare: " + state.winner) : cur;
+    state.finished ? state.winner : cur;
+
+  // Final standings plus the replay button, only once the sheet is full.
+  var ac = document.getElementById("againCard");
+  if(state.finished){
+    var order = state.players.slice().sort(function(a,b){
+      return state.totals[b].total - state.totals[a].total;
+    });
+    var fh = "";
+    order.forEach(function(p, i){
+      fh += "<tr><td style=\"text-align:left;opacity:.6;width:28px\">" + (i+1) +
+            ".</td><td style=\"text-align:left\">" + esc(p) + "</td><td>" +
+            state.totals[p].total + "</td></tr>";
+    });
+    document.getElementById("finalTable").innerHTML = fh;
+    ac.className = "card";
+  } else {
+    ac.className = "card hide";
+  }
 
   var t = document.getElementById("sheet"), h = "";
   h += "<thead><tr><th>Ruta</th>";

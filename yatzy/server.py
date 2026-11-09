@@ -79,6 +79,10 @@ def new_room(code, players):
         "created": time.time(),
         "updated": time.time(),
         "version": 1,
+        # Counts how many games this room has played. The TV uses it to know
+        # a replay is a new game, which a seconds-resolution timestamp cannot
+        # tell it when two games finish in the same second.
+        "round": 1,
     }
 
 
@@ -233,6 +237,21 @@ class Handler(SimpleHTTPRequestHandler):
                             break
                 room["version"] += 1
                 room["updated"] = time.time()
+                save_rooms()
+                return self._json(public(room))
+
+        if path.startswith("/api/again/"):
+            code = path.rsplit("/", 1)[-1].upper()
+            with _lock:
+                room = _rooms.get(code)
+                if not room:
+                    return self._json({"error": "no_such_room"}, 404)
+                room["scores"] = {p: {} for p in room["players"]}
+                room["turn"] = 0
+                room["round"] = int(room.get("round", 1)) + 1
+                room["created"] = time.time()
+                room["updated"] = time.time()
+                room["version"] += 1
                 save_rooms()
                 return self._json(public(room))
 

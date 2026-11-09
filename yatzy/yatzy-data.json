@@ -1,0 +1,80 @@
+{
+ "LXSME": {
+  "code": "LXSME",
+  "players": [
+   "anita",
+   "svempa",
+   "louise"
+  ],
+  "scores": {
+   "anita": {
+    "fyror": 8
+   },
+   "svempa": {},
+   "louise": {}
+  },
+  "turn": 1,
+  "created": 1794249102.3877757,
+  "updated": 1794249189.768175,
+  "version": 6
+ },
+ "DHPZY": {
+  "code": "DHPZY",
+  "players": [
+   "Anita",
+   "Svempa",
+   "Louise",
+   "Saha"
+  ],
+  "scores": {
+   "Anita": {},
+   "Svempa": {},
+   "Louise": {},
+   "Saha": {}
+  },
+  "turn": 0,
+  "created": 1794250275.5304215,
+  "updated": 1794250275.5304217,
+  "version": 1
+ },
+ "FXBLE": {
+  "code": "FXBLE",
+  "players": [
+   "Anita",
+   "Svempa",
+   "Louise",
+   "Sasha"
+  ],
+  "scores": {
+   "Anita": {},
+   "Svempa": {},
+   "Louise": {},
+   "Sasha": {}
+  },
+  "turn": 0,
+  "created": 1794254041.2776022,
+  "updated": 1794254041.2776027,
+  "version": 68,
+  "round": 2
+ },
+ "HEUVT": {
+  "code": "HEUVT",
+  "players": [
+   "Anita",
+   "Svempa",
+   "Louise",
+   "Sasha"
+  ],
+  "scores": {
+   "Anita": {},
+   "Svempa": {},
+   "Louise": {},
+   "Sasha": {}
+  },
+  "turn": 0,
+  "created": 1794257528.3910184,
+  "updated": 1794257528.3910189,
+  "version": 66,
+  "round": 2
+ }
+}
