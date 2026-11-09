@@ -1,0 +1,14 @@
+[Unit]
+Description=Yatzy tillsammans
+After=network.target
+
+[Service]
+Type=simple
+User=yatzy
+WorkingDirectory=/opt/yatzy
+ExecStart=/usr/bin/python3 /opt/yatzy/server.py --host 127.0.0.1 --port 8765 --no-browser
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+# Yatzy tillsammans behind HTTPS (needed for PWA install on Android and for
+# most smart-TV browsers). Point yatzy.example.com at the VPS first.
+yatzy.example.com {
+    encode gzip
+    reverse_proxy 127.0.0.1:8765
+}

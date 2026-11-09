@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yatzy tillsammans – TV</title>
+<style>
+  /* Deliberately plain CSS: no grid, no custom properties, no flex gap, so an
+     older Samsung TV browser has a fair chance of rendering it. */
+  html,body{margin:0; padding:0; background:#123b31; color:#f7f5ed;
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  /* TVs overscan: keep everything inside a safe margin. */
+  .safe{padding:3vh 3vw;}
+  .top{overflow:hidden; margin-bottom:1.6vh;}
+  .top h1{margin:0; float:left; font-size:3.0vh; letter-spacing:.08em;
+    text-transform:uppercase; color:#c8a24a;}
+  .top .code{float:right; font-size:2.6vh; opacity:.8;}
+  .now{background:#1d5444; padding:1.6vh 2vw; margin-bottom:1.8vh;
+    border-left:0.9vh solid #c8a24a;}
+  .now .lab{font-size:2.0vh; opacity:.75; letter-spacing:.14em;
+    text-transform:uppercase;}
+  .now .nm{font-size:6.4vh; font-weight:700; line-height:1.05;}
+  table{width:100%; border-collapse:collapse;}
+  th,td{padding:0.75vh 0.6vw; text-align:right; font-size:2.5vh;
+    border-bottom:1px solid #27614f;}
+  th:first-child,td:first-child{text-align:left; opacity:.85;}
+  thead th{font-size:2.6vh; color:#c8a24a; text-transform:uppercase;
+    letter-spacing:.05em;}
+  thead th.cur{background:#c8a24a; color:#123b31;}
+  td.cur{background:#1a4b3e;}
+  tr.sum td{font-weight:700; font-size:2.9vh; background:#0d2d25;}
+  tr.tot td{font-weight:700; font-size:4.0vh; background:#c8a24a; color:#123b31;}
+  tr.bonus td{color:#9fd3bf; font-size:2.2vh;}
+  .empty{text-align:center; padding-top:18vh;}
+  .empty .big{font-size:7vh; color:#c8a24a; letter-spacing:.1em;}
+  .empty .sub{font-size:2.8vh; opacity:.8; margin-top:2vh; line-height:1.5;}
+  .win{background:#c8a24a; color:#123b31; padding:1.6vh 2vw; margin-bottom:1.8vh;}
+  .win .nm{font-size:6.0vh; font-weight:700;}
+</style>
+</head>
+<body>
+<div class="safe" id="root">
+  <div class="empty">
+    <div class="big">YATZY TILLSAMMANS</div>
+    <div class="sub">Laddar…</div>
+  </div>
+</div>
+
+<script>
+var LABELS = {
+  ettor:"Ettor", tvaor:"Tv\u00e5or", treor:"Treor", fyror:"Fyror",
+  femmor:"Femmor", sexor:"Sexor",
+  ett_par:"Ett par", tva_par:"Tv\u00e5 par", tretal:"Tretal", fyrtal:"Fyrtal",
+  liten_stege:"Liten stege", stor_stege:"Stor stege", kak:"K\u00e5k",
+  chans:"Chans", yatzy:"Yatzy"
+};
+
+var code = (location.pathname.match(/\/tv\/([A-Za-z]{5})/) || [])[1];
+var since = 0;
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function blank(msg){
+  document.getElementById("root").innerHTML =
+    '<div class="empty"><div class="big">YATZY TILLSAMMANS</div>' +
+    '<div class="sub">' + msg + "</div></div>";
+}
+
+if(!code){
+  blank("\u00d6ppna adressen med spelkoden, t.ex.<br>" +
+        location.origin + "/tv/ABCDE");
+} else {
+  code = code.toUpperCase();
+  poll();
+}
+
+function poll(){
+  var x = new XMLHttpRequest();
+  x.open("GET", "/api/state/" + code + "?since=" + since, true);
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    var ok = false;
+    try{
+      var s = JSON.parse(x.responseText);
+      if(s && !s.error){ since = s.version; draw(s); ok = true; }
+      else if(s && s.error === "no_such_room"){
+        blank("Hittade inget spel med koden " + code + ".");
+      }
+    }catch(e){}
+    setTimeout(poll, ok ? 300 : 3000);
+  };
+  x.onerror = function(){ setTimeout(poll, 3000); };
+  x.send();
+}
+
+function draw(s){
+  var cur = s.players[s.turn], i, p, h;
+
+  h = '<div class="top"><h1>Yatzy tillsammans</h1>' +
+      '<div class="code">Kod ' + esc(s.code) + "</div></div>";
+
+  if(s.finished){
+    h += '<div class="win"><div class="lab">VINNARE</div><div class="nm">' +
+         esc(s.winner) + " \u2013 " + s.totals[s.winner].total +
+         " po\u00e4ng</div></div>";
+  } else {
+    h += '<div class="now"><div class="lab">Nu spelar</div><div class="nm">' +
+         esc(cur) + "</div></div>";
+  }
+
+  h += "<table><thead><tr><th>Ruta</th>";
+  for(i=0;i<s.players.length;i++){
+    p = s.players[i];
+    h += '<th class="' + (p===cur && !s.finished ? "cur" : "") + '">' +
+         esc(p) + "</th>";
+  }
+  h += "</tr></thead><tbody>";
+
+  function rows(list){
+    var j,k,v,c;
+    for(j=0;j<list.length;j++){
+      c = list[j];
+      h += "<tr><td>" + LABELS[c] + "</td>";
+      for(k=0;k<s.players.length;k++){
+        p = s.players[k];
+        v = s.scores[p] ? s.scores[p][c] : undefined;
+        h += '<td class="' + (p===cur && !s.finished ? "cur" : "") + '">' +
+             (v === undefined || v === null ? "\u00b7" : v) + "</td>";
+      }
+      h += "</tr>";
+    }
+  }
+
+  rows(s.categories.upper);
+
+  h += '<tr class="sum"><td>Summa</td>';
+  for(i=0;i<s.players.length;i++) h += "<td>" + s.totals[s.players[i]].upper + "</td>";
+  h += "</tr>";
+
+  h += '<tr class="bonus"><td>Bonus vid 63</td>';
+  for(i=0;i<s.players.length;i++){
+    var t = s.totals[s.players[i]];
+    h += "<td>" + (t.bonus ? "+50" :
+         (t.to_bonus ? t.to_bonus + " kvar" : "\u2013")) + "</td>";
+  }
+  h += "</tr>";
+
+  rows(s.categories.lower);
+
+  h += '<tr class="tot"><td>TOTALT</td>';
+  for(i=0;i<s.players.length;i++) h += "<td>" + s.totals[s.players[i]].total + "</td>";
+  h += "</tr></tbody></table>";
+
+  document.getElementById("root").innerHTML = h;
+}
+</script>
+</body>
+</html>

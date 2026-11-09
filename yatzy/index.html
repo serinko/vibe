@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yatzy tillsammans</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#123b31">
+<style>
+  :root{
+    --cream:#f7f5ed;
+    --green:#123b31;
+    --green-soft:#1d5444;
+    --line:#d8d3c2;
+    --gold:#c8a24a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--cream); color:var(--green);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  header{
+    background:var(--green); color:var(--cream);
+    padding:14px 16px; display:flex; align-items:center; justify-content:space-between;
+  }
+  header h1{margin:0; font-size:18px; letter-spacing:.4px}
+  .code{font-size:13px; opacity:.85}
+  .wrap{padding:16px; max-width:620px; margin:0 auto}
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:16px; margin-bottom:14px;
+  }
+  label{display:block; font-size:13px; margin:10px 0 4px; opacity:.75}
+  input{
+    width:100%; padding:12px; font-size:16px; border:1px solid var(--line);
+    border-radius:8px; background:var(--cream); color:var(--green);
+  }
+  button{
+    font-family:inherit; font-size:16px; padding:13px 16px; border:0;
+    border-radius:8px; background:var(--green); color:var(--cream);
+    width:100%; margin-top:12px; cursor:pointer;
+  }
+  button.ghost{background:transparent; color:var(--green); border:1px solid var(--line)}
+  button:active{opacity:.85}
+  .who{
+    background:var(--green); color:var(--cream); border-radius:12px;
+    padding:14px 16px; margin-bottom:14px;
+  }
+  .who .turn{font-size:13px; opacity:.8}
+  .who .name{font-size:26px; font-weight:600; margin-top:2px}
+  table{width:100%; border-collapse:collapse; font-size:15px}
+  th,td{padding:9px 6px; border-bottom:1px solid var(--line); text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:12px; opacity:.6; font-weight:600}
+  .box{
+    display:inline-block; min-width:44px; padding:7px 4px; border-radius:6px;
+    border:1px solid var(--line); background:var(--cream); cursor:pointer;
+  }
+  .box.set{background:var(--green); color:var(--cream); border-color:var(--green)}
+  .sum td{font-weight:700; background:#f0ede0}
+  .bonus td{color:var(--green-soft)}
+  .pad{
+    position:fixed; left:0; right:0; bottom:0; background:#fff;
+    border-top:2px solid var(--green); padding:14px;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 16px rgba(0,0,0,.12);
+  }
+  .pad h3{margin:0 0 10px; font-size:16px}
+  .keys{display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
+  .keys button{margin:0; padding:15px 0; font-size:17px}
+  .hide{display:none}
+  .hint{font-size:13px; opacity:.7; line-height:1.5}
+  .tvlink{font-size:14px; word-break:break-all}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Yatzy tillsammans</h1>
+  <span class="code" id="hdrCode"></span>
+</header>
+
+<div class="wrap">
+
+  <!-- start -->
+  <div id="start">
+    <div class="card">
+      <h2 style="margin:0 0 4px; font-size:18px">Nytt spel</h2>
+      <p class="hint">Skriv in namnen, ett per rad.</p>
+      <label for="names">Spelare</label>
+      <textarea id="names" rows="5" style="width:100%;padding:12px;font-size:16px;
+        border:1px solid var(--line);border-radius:8px;background:var(--cream);
+        color:var(--green);font-family:inherit">Mamma
+Pappa</textarea>
+      <button onclick="createGame()">Starta spelet</button>
+    </div>
+    <div class="card">
+      <h2 style="margin:0 0 4px; font-size:18px">Gå med i spel</h2>
+      <p class="hint">Koden står uppe på TV:n.</p>
+      <label for="joinCode">Kod</label>
+      <input id="joinCode" maxlength="5" autocapitalize="characters" placeholder="ABCDE">
+      <button class="ghost" onclick="joinGame()">Gå med</button>
+    </div>
+  </div>
+
+  <!-- game -->
+  <div id="game" class="hide">
+    <div class="who">
+      <div class="turn">Nu är det</div>
+      <div class="name" id="curName">-</div>
+    </div>
+    <div class="card" style="padding:8px 10px">
+      <table id="sheet"></table>
+    </div>
+    <div class="card">
+      <p class="hint">Visa ställningen på TV:n genom att öppna den här adressen
+        i TV:ns webbläsare, eller casta fliken:</p>
+      <p class="tvlink"><strong id="tvUrl"></strong></p>
+      <button class="ghost" onclick="openTv()">Öppna TV-vy här</button>
+      <button class="ghost" onclick="leave()">Lämna spelet</button>
+    </div>
+    <div style="height:150px"></div>
+  </div>
+</div>
+
+<!-- score pad -->
+<div class="pad hide" id="pad">
+  <h3 id="padTitle">Poäng</h3>
+  <div class="keys" id="padKeys"></div>
+  <button class="ghost" onclick="closePad()">Avbryt</button>
+</div>
+
+<script>
+var LABELS = {
+  ettor:"Ettor", tvaor:"Tvåor", treor:"Treor", fyror:"Fyror",
+  femmor:"Femmor", sexor:"Sexor",
+  ett_par:"Ett par", tva_par:"Två par", tretal:"Tretal", fyrtal:"Fyrtal",
+  liten_stege:"Liten stege", stor_stege:"Stor stege", kak:"Kåk",
+  chans:"Chans", yatzy:"Yatzy"
+};
+// Allowed values per category, so a kid taps instead of typing.
+var FACE = {ettor:1, tvaor:2, treor:3, fyror:4, femmor:5, sexor:6};
+function options(cat){
+  var o=[0], i;
+  if (FACE[cat]) { for(i=1;i<=5;i++) o.push(FACE[cat]*i); return o; }
+  if (cat==="liten_stege") return [0,15];
+  if (cat==="stor_stege")  return [0,20];
+  if (cat==="yatzy")       return [0,50];
+  if (cat==="ett_par")     { for(i=2;i<=12;i+=2) o.push(i); return o; }
+  if (cat==="tva_par")     { for(i=6;i<=22;i+=2) o.push(i); return o; }
+  if (cat==="tretal")      { for(i=3;i<=18;i+=3) o.push(i); return o; }
+  if (cat==="fyrtal")      { for(i=4;i<=24;i+=4) o.push(i); return o; }
+  if (cat==="kak")         { for(i=7;i<=28;i++)  o.push(i); return o; }
+  if (cat==="chans")       { for(i=5;i<=30;i++)  o.push(i); return o; }
+  return o;
+}
+
+var state=null, code=null, since=0, polling=false, pick=null;
+
+function api(path, body){
+  return fetch(path, body ? {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)
+  } : {}).then(function(r){ return r.json(); });
+}
+
+function createGame(){
+  var names = document.getElementById("names").value
+    .split("\n").map(function(s){return s.trim();}).filter(Boolean);
+  if(!names.length){ alert("Skriv minst ett namn."); return; }
+  api("/api/new", {players:names}).then(function(s){
+    if(s.error){ alert("Kunde inte starta spelet."); return; }
+    enter(s);
+  });
+}
+
+function joinGame(){
+  var c = document.getElementById("joinCode").value.trim().toUpperCase();
+  if(c.length !== 5){ alert("Koden är fem bokstäver."); return; }
+  fetch("/api/state/"+c+"?since=0").then(function(r){return r.json();})
+    .then(function(s){
+      if(s.error){ alert("Hittade inget spel med koden "+c+"."); return; }
+      enter(s);
+    });
+}
+
+function enter(s){
+  state = s; code = s.code; since = s.version;
+  try{ localStorage.setItem("yatzy_code", code); }catch(e){}
+  if (history.replaceState) history.replaceState(null,"","/spel/"+code);
+  document.getElementById("start").className="hide";
+  document.getElementById("game").className="";
+  document.getElementById("hdrCode").textContent = "Kod "+code;
+  document.getElementById("tvUrl").textContent =
+    location.origin + "/tv/" + code;
+  render();
+  if(!polling){ polling=true; poll(); }
+}
+
+function leave(){
+  try{ localStorage.removeItem("yatzy_code"); }catch(e){}
+  location.href = "/";
+}
+
+function openTv(){ window.open("/tv/"+code, "_blank"); }
+
+function poll(){
+  fetch("/api/state/"+code+"?since="+since)
+    .then(function(r){return r.json();})
+    .then(function(s){
+      if(s && !s.error){ state=s; since=s.version; render(); }
+      setTimeout(poll, 300);
+    })
+    .catch(function(){ setTimeout(poll, 2500); });
+}
+
+function render(){
+  if(!state) return;
+  var cur = state.players[state.turn];
+  document.getElementById("curName").textContent =
+    state.finished ? ("Vinnare: " + state.winner) : cur;
+
+  var t = document.getElementById("sheet"), h = "";
+  h += "<thead><tr><th>Ruta</th>";
+  state.players.forEach(function(p){
+    h += "<th>" + (p===cur && !state.finished ? "▸ " : "") + esc(p) + "</th>";
+  });
+  h += "</tr></thead><tbody>";
+
+  function rows(list){
+    list.forEach(function(cat){
+      h += "<tr><td>" + LABELS[cat] + "</td>";
+      state.players.forEach(function(p){
+        var v = state.scores[p] ? state.scores[p][cat] : undefined;
+        var set = (v !== undefined && v !== null);
+        h += '<td><span class="box' + (set?" set":"") + '" onclick="tap(\'' +
+             p.replace(/'/g,"\\'") + '\',\'' + cat + '\')">' +
+             (set ? v : "–") + "</span></td>";
+      });
+      h += "</tr>";
+    });
+  }
+
+  rows(state.categories.upper);
+  h += '<tr class="sum"><td>Summa</td>';
+  state.players.forEach(function(p){ h += "<td>"+state.totals[p].upper+"</td>"; });
+  h += "</tr>";
+  h += '<tr class="bonus"><td>Bonus (63+)</td>';
+  state.players.forEach(function(p){
+    var tt = state.totals[p];
+    h += "<td>" + (tt.bonus ? "+50" : ("–" + (tt.to_bonus ? " ("+tt.to_bonus+")" : ""))) + "</td>";
+  });
+  h += "</tr>";
+  rows(state.categories.lower);
+  h += '<tr class="sum"><td>TOTALT</td>';
+  state.players.forEach(function(p){ h += "<td>"+state.totals[p].total+"</td>"; });
+  h += "</tr></tbody>";
+  t.innerHTML = h;
+}
+
+function tap(player, cat){
+  pick = {player:player, category:cat};
+  var has = state.scores[player] && state.scores[player][cat] !== undefined;
+  document.getElementById("padTitle").textContent =
+    LABELS[cat] + " – " + player;
+  var k = document.getElementById("padKeys"), h = "";
+  options(cat).forEach(function(v){
+    h += '<button onclick="setScore('+v+')">'+v+"</button>";
+  });
+  k.innerHTML = h;
+  if(has){
+    h = '<button class="ghost" onclick="undo()">Ta bort</button>';
+    k.innerHTML += h;
+  }
+  document.getElementById("pad").className = "pad";
+}
+
+function closePad(){ document.getElementById("pad").className="pad hide"; pick=null; }
+
+function setScore(v){
+  if(!pick) return;
+  api("/api/score/"+code, {player:pick.player, category:pick.category, value:v})
+    .then(function(s){ if(!s.error){ state=s; since=s.version; render(); } });
+  closePad();
+}
+
+function undo(){
+  if(!pick) return;
+  api("/api/undo/"+code, {player:pick.player, category:pick.category})
+    .then(function(s){ if(!s.error){ state=s; since=s.version; render(); } });
+  closePad();
+}
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// Rejoin automatically: /spel/CODE in the address, or the last game played.
+(function(){
+  var m = location.pathname.match(/\/spel\/([A-Za-z]{5})/);
+  var saved = null;
+  try{ saved = localStorage.getItem("yatzy_code"); }catch(e){}
+  var c = m ? m[1].toUpperCase() : saved;
+  if(c){
+    fetch("/api/state/"+c+"?since=0").then(function(r){return r.json();})
+      .then(function(s){ if(s && !s.error) enter(s); });
+  }
+})();
+</script>
+</body>
+</html>
