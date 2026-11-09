@@ -70,6 +70,9 @@
   .keys{display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
   .keys button{margin:0; padding:15px 0; font-size:17px}
   .hide{display:none}
+  .padrow{display:flex; gap:8px; margin-top:12px}
+  .padrow button{margin-top:0}
+  button.danger{border-color:#a8442f; color:#a8442f}
   .hint{font-size:13px; opacity:.7; line-height:1.5}
   .tvlink{font-size:14px; word-break:break-all}
 </style>
@@ -128,7 +131,10 @@ Pappa</textarea>
 <div class="pad hide" id="pad">
   <h3 id="padTitle">Poäng</h3>
   <div class="keys" id="padKeys"></div>
-  <button class="ghost" onclick="closePad()">Avbryt</button>
+  <div class="padrow">
+    <button class="ghost" onclick="closePad()">Avbryt</button>
+    <button class="ghost danger hide" id="padUndo" onclick="undo()">Rensa rutan</button>
+  </div>
 </div>
 
 <script>
@@ -261,18 +267,22 @@ function render(){
 
 function tap(player, cat){
   pick = {player:player, category:cat};
-  var has = state.scores[player] && state.scores[player][cat] !== undefined;
+  var cur = state.scores[player] ? state.scores[player][cat] : undefined;
+  var has = (cur !== undefined && cur !== null);
+
+  // Say what is in the box already, so correcting a mistake is obvious.
   document.getElementById("padTitle").textContent =
-    LABELS[cat] + " – " + player;
+    LABELS[cat] + " \u2013 " + player + (has ? "  (nu: " + cur + ")" : "");
+
   var k = document.getElementById("padKeys"), h = "";
   options(cat).forEach(function(v){
-    h += '<button onclick="setScore('+v+')">'+v+"</button>";
+    h += '<button onclick="setScore(' + v + ')"' +
+         (v === cur ? ' style="background:#c8a24a;color:#123b31"' : '') +
+         ">" + v + "</button>";
   });
   k.innerHTML = h;
-  if(has){
-    h = '<button class="ghost" onclick="undo()">Ta bort</button>';
-    k.innerHTML += h;
-  }
+
+  document.getElementById("padUndo").className = has ? "ghost danger" : "ghost danger hide";
   document.getElementById("pad").className = "pad";
 }
 
