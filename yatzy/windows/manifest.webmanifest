@@ -1,0 +1,18 @@
+{
+  "name": "Yatzy tillsammans",
+  "short_name": "Yatzy",
+  "description": "Håll koll på poängen när familjen spelar Yatzy.",
+  "lang": "sv",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f5ed",
+  "theme_color": "#123b31",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
