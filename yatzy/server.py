@@ -133,12 +133,17 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            # Normal with long polling: the page navigated away or the phone
+            # slept while a request was still open. Nothing to report.
+            pass
 
     def _body(self):
         try:
@@ -213,14 +218,19 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._json({"error": "no_such_room"}, 404)
                 if player not in room["players"]:
                     return self._json({"error": "no_such_player"}, 400)
+                # A box that already had a value is a correction, not a new
+                # entry: fixing a typo further up the sheet must not push the
+                # turn on to the next player.
+                correcting = cat in room["scores"].get(player, {})
                 room["scores"].setdefault(player, {})[cat] = max(0, value)
-                # Next player who still has empty boxes.
-                n = len(room["players"])
-                for step in range(1, n + 1):
-                    cand = room["players"][(room["players"].index(player) + step) % n]
-                    if len([k for k in room["scores"].get(cand, {}) if k in CATEGORIES]) < len(CATEGORIES):
-                        room["turn"] = room["players"].index(cand)
-                        break
+                if not correcting:
+                    # Next player who still has empty boxes.
+                    n = len(room["players"])
+                    for step in range(1, n + 1):
+                        cand = room["players"][(room["players"].index(player) + step) % n]
+                        if len([k for k in room["scores"].get(cand, {}) if k in CATEGORIES]) < len(CATEGORIES):
+                            room["turn"] = room["players"].index(cand)
+                            break
                 room["version"] += 1
                 room["updated"] = time.time()
                 save_rooms()
