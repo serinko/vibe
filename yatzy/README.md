@@ -345,3 +345,4 @@ DATA_FILE = Path("/var/lib/yatzy/yatzy-data.json")
 Python's built-in HTTP server is not production software, and its own
 documentation says so. Keeping Caddy in front of it, on a machine with nothing
 else to lose, is what makes this acceptable for a family score sheet.
+
